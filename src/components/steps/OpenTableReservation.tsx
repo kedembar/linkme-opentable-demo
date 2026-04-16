@@ -60,11 +60,11 @@ export function OpenTableReservation({ onNext }: Props) {
             <div className="px-5 py-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-xl overflow-hidden">
-                  <img src="/images/profile.png" alt="CLAUDIE Miami" className="w-full h-full object-cover" />
+                  <img src="/images/mila-profile.webp" alt="MILA Miami Beach" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <div className="font-bold text-lg text-gray-900">CLAUDIE Miami</div>
-                  <div className="text-sm text-gray-500">Mediterranean Cuisine</div>
+                  <div className="font-bold text-lg text-gray-900">MILA Miami Beach</div>
+                  <div className="text-sm text-gray-500">MediterrAsian Cuisine</div>
                   <div className="flex items-center gap-1 mt-0.5">
                     {[1,2,3,4,5].map((s) => (
                       <svg key={s} width="12" height="12" viewBox="0 0 12 12" fill={s <= 4 ? '#DA3743' : '#ddd'}>
@@ -139,7 +139,7 @@ export function OpenTableReservation({ onNext }: Props) {
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Restaurant</span>
-                    <span className="font-medium text-gray-900">CLAUDIE Miami</span>
+                    <span className="font-medium text-gray-900">MILA Miami Beach</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Date & Time</span>
@@ -231,7 +231,7 @@ export function OpenTableReservation({ onNext }: Props) {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
             >
-              CLAUDIE Miami · Sat, Mar 29 · {selectedTime} · 2 guests
+              MILA Miami Beach · Sat, Mar 29 · {selectedTime} · 2 guests
             </motion.p>
 
             {/* Attribution badge */}

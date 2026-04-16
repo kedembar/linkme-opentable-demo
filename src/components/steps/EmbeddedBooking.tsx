@@ -1,9 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
+import { TapIndicator, PreTapGlow } from '../TapIndicator';
 
 interface Props {
   isOpen: boolean;
   onConfirmed: () => void;
+  autoPlay?: boolean;
 }
 
 function generateDates() {
@@ -37,7 +39,7 @@ const TIME_SLOTS = [
 
 const PARTY_SIZES = [1, 2, 3, 4, 5, '6+'];
 
-export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
+export function EmbeddedBooking({ isOpen, onConfirmed, autoPlay }: Props) {
   const [dates] = useState(generateDates);
   const [selectedDate, setSelectedDate] = useState(0);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -45,6 +47,33 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
   const [confirmed, setConfirmed] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const widgetRef = useRef<HTMLDivElement>(null);
+
+  // Helper: scroll the booking widget into view within the PhoneFrame
+  const scrollWidgetIntoView = () => {
+    if (!widgetRef.current) return;
+    // Find the scrollable PhoneFrame ancestor
+    let scrollParent = widgetRef.current.parentElement;
+    while (scrollParent) {
+      if (scrollParent.scrollHeight > scrollParent.clientHeight + 10) {
+        const overflowY = window.getComputedStyle(scrollParent).overflowY;
+        if (overflowY === 'auto' || overflowY === 'scroll') break;
+      }
+      scrollParent = scrollParent.parentElement;
+    }
+    if (!scrollParent) return;
+    // Use getBoundingClientRect for accurate position (works with animated elements)
+    const widgetRect = widgetRef.current.getBoundingClientRect();
+    const parentRect = scrollParent.getBoundingClientRect();
+    // How far the widget top is from the scroll container top (in current scroll position)
+    const widgetTopRelative = widgetRect.top - parentRect.top;
+    // The Dynamic Island + status bar covers the top ~58px of the phone screen.
+    // Content scrolled above that line is hidden behind the notch.
+    // Position the widget top just below the safe area.
+    const safeAreaTop = 58;
+    const scrollDelta = widgetTopRelative - safeAreaTop;
+    scrollParent.scrollTo({ top: scrollParent.scrollTop + scrollDelta, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -53,8 +82,49 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
       setConfirming(false);
       setSelectedDate(0);
       setSelectedParty(2);
+      setAutoPhase(null);
+      setAutoTap(null);
     }
   }, [isOpen]);
+
+  // Auto-play phase tracking: 'party' | 'date' | 'time' | 'confirm' | null
+  const [autoPhase, setAutoPhase] = useState<string | null>(null);
+  const [autoTap, setAutoTap] = useState<string | null>(null);
+
+  // Auto-play: walk through each selection with visible glow → tap → action
+  useEffect(() => {
+    if (!autoPlay || !isOpen) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const t = (fn: () => void, ms: number) => { const id = setTimeout(fn, ms); timers.push(id); };
+
+    // Initial scroll to show the widget once it opens (wait for height animation to finish)
+    t(() => scrollWidgetIntoView(), 800);
+    // Re-scroll after layout has fully settled
+    t(() => scrollWidgetIntoView(), 1200);
+
+    // Phase 1: Party size — glow then tap "4"
+    t(() => { setAutoPhase('party'); scrollWidgetIntoView(); }, 1600);
+    t(() => { setAutoTap('party'); setSelectedParty(4); }, 2800);
+
+    // Phase 2: Date — glow then tap 3rd date
+    t(() => { setAutoPhase('date'); setAutoTap(null); scrollWidgetIntoView(); }, 3800);
+    t(() => { setAutoTap('date'); setSelectedDate(2); }, 5000);
+
+    // Phase 3: Time slot — glow then tap "7:00 PM"
+    t(() => { setAutoPhase('time'); setAutoTap(null); scrollWidgetIntoView(); }, 6000);
+    t(() => { setAutoTap('time'); setSelectedTime('7:00 PM'); }, 7200);
+
+    // Phase 4: Confirm button — glow then tap
+    t(() => { setAutoPhase('confirm'); setAutoTap(null); scrollWidgetIntoView(); }, 8600);
+    t(() => {
+      setAutoTap('confirm');
+      setConfirming(true);
+      setTimeout(() => { setConfirming(false); setConfirmed(true); scrollWidgetIntoView(); }, 1200);
+      setTimeout(() => onConfirmed(), 3500);
+    }, 9800);
+
+    return () => timers.forEach(clearTimeout);
+  }, [autoPlay, isOpen, onConfirmed]);
 
   const handleConfirm = () => {
     setConfirming(true);
@@ -74,13 +144,14 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          ref={widgetRef}
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           className="overflow-hidden"
         >
-          <div className="mx-3 mt-2 rounded-2xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="mx-3 mt-1 rounded-2xl overflow-hidden" style={{ background: 'rgba(20,20,20,0.95)', border: '1px solid rgba(239,237,237,0.1)' }}>
             <AnimatePresence mode="wait">
               {!confirmed ? (
                 <motion.div
@@ -88,38 +159,40 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="p-4"
+                  className="p-3 pb-2"
                 >
                   {/* Header */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#DA3743"><circle cx="12" cy="12" r="10" fill="none" stroke="#DA3743" strokeWidth="1.5"/><circle cx="12" cy="12" r="3" fill="#DA3743"/></svg>
-                    <span className="text-[11px] font-semibold text-white/90">Book with OpenTable</span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#DA3743"><circle cx="12" cy="12" r="10" fill="none" stroke="#DA3743" strokeWidth="1.5"/><circle cx="12" cy="12" r="3" fill="#DA3743"/></svg>
+                    <span className="text-[11px] font-semibold" style={{ color: 'rgba(239,237,237,0.9)' }}>Book with OpenTable</span>
                   </div>
 
                   {/* Party size */}
-                  <div className="mb-3">
-                    <div className="text-[9px] text-white/40 uppercase tracking-wider mb-1.5">Party size</div>
+                  <div className="mb-2">
+                    <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'rgba(239,237,237,0.4)' }}>Party size</div>
                     <div className="flex gap-1.5">
                       {PARTY_SIZES.map((size) => (
                         <button
                           key={size}
                           onClick={() => setSelectedParty(size)}
-                          className="w-8 h-8 rounded-lg text-[11px] font-medium transition-all"
+                          className="w-8 h-8 rounded-lg text-[11px] font-medium transition-all relative"
                           style={{
-                            backgroundColor: selectedParty === size ? '#DA3743' : 'rgba(255,255,255,0.06)',
-                            color: selectedParty === size ? 'white' : 'rgba(255,255,255,0.5)',
-                            border: selectedParty === size ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                            backgroundColor: selectedParty === size ? '#DA3743' : 'rgba(239,237,237,0.06)',
+                            color: selectedParty === size ? '#fff' : 'rgba(239,237,237,0.5)',
+                            border: selectedParty === size ? 'none' : '1px solid rgba(239,237,237,0.1)',
                           }}
                         >
                           {size}
+                          {size === 4 && <PreTapGlow show={autoPhase === 'party' && autoTap !== 'party'} />}
+                          {size === 4 && <TapIndicator show={autoTap === 'party'} />}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {/* Date selector */}
-                  <div className="mb-3">
-                    <div className="text-[9px] text-white/40 uppercase tracking-wider mb-1.5">Select date</div>
+                  <div className="mb-2">
+                    <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'rgba(239,237,237,0.4)' }}>Select date</div>
                     <div
                       ref={scrollRef}
                       className="flex gap-1.5 overflow-x-auto pb-1"
@@ -129,53 +202,57 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
                         <button
                           key={i}
                           onClick={() => setSelectedDate(i)}
-                          className="flex-shrink-0 w-[46px] py-2 rounded-xl text-center transition-all"
+                          className="flex-shrink-0 w-[44px] py-1.5 rounded-xl text-center transition-all relative"
                           style={{
-                            backgroundColor: selectedDate === i ? '#DA3743' : 'rgba(255,255,255,0.06)',
-                            border: selectedDate === i ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                            backgroundColor: selectedDate === i ? '#DA3743' : 'rgba(239,237,237,0.06)',
+                            border: selectedDate === i ? 'none' : '1px solid rgba(239,237,237,0.1)',
                           }}
                         >
-                          <div className="text-[9px] font-medium" style={{ color: selectedDate === i ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.35)' }}>
+                          <div className="text-[9px] font-medium" style={{ color: selectedDate === i ? 'rgba(255,255,255,0.7)' : 'rgba(239,237,237,0.35)' }}>
                             {date.day}
                           </div>
-                          <div className="text-[13px] font-bold" style={{ color: selectedDate === i ? 'white' : 'rgba(255,255,255,0.6)' }}>
+                          <div className="text-[13px] font-bold" style={{ color: selectedDate === i ? '#fff' : 'rgba(239,237,237,0.6)' }}>
                             {date.num}
                           </div>
+                          {i === 2 && <PreTapGlow show={autoPhase === 'date' && autoTap !== 'date'} />}
+                          {i === 2 && <TapIndicator show={autoTap === 'date'} />}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {/* Time slots */}
-                  <div className="mb-3">
-                    <div className="text-[9px] text-white/40 uppercase tracking-wider mb-1.5">Available times</div>
+                  <div className="mb-2">
+                    <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'rgba(239,237,237,0.4)' }}>Available times</div>
                     <div className="grid grid-cols-3 gap-1.5">
                       {TIME_SLOTS.map((slot) => (
                         <button
                           key={slot.time}
                           onClick={() => slot.available && setSelectedTime(slot.time)}
                           disabled={!slot.available}
-                          className="py-2 rounded-xl text-[11px] font-medium transition-all"
+                          className="py-1.5 rounded-xl text-[11px] font-medium transition-all relative"
                           style={{
                             backgroundColor: selectedTime === slot.time
                               ? '#DA3743'
                               : slot.available
-                                ? 'rgba(255,255,255,0.04)'
-                                : 'rgba(255,255,255,0.02)',
+                                ? 'rgba(239,237,237,0.04)'
+                                : 'rgba(239,237,237,0.02)',
                             border: selectedTime === slot.time
                               ? 'none'
                               : slot.available
                                 ? '1px solid rgba(218,55,67,0.3)'
-                                : '1px solid rgba(255,255,255,0.04)',
+                                : '1px solid rgba(239,237,237,0.05)',
                             color: selectedTime === slot.time
-                              ? 'white'
+                              ? '#fff'
                               : slot.available
-                                ? 'rgba(255,255,255,0.6)'
-                                : 'rgba(255,255,255,0.15)',
+                                ? 'rgba(239,237,237,0.6)'
+                                : 'rgba(239,237,237,0.15)',
                             cursor: slot.available ? 'pointer' : 'default',
                           }}
                         >
                           {slot.time}
+                          {slot.time === '7:00 PM' && <PreTapGlow show={autoPhase === 'time' && autoTap !== 'time'} />}
+                          {slot.time === '7:00 PM' && <TapIndicator show={autoTap === 'time'} />}
                         </button>
                       ))}
                     </div>
@@ -190,11 +267,11 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.3 }}
                       >
-                        <div className="text-[10px] text-white/40 text-center mb-2">{summaryText}</div>
+                        <div className="text-[10px] text-center mb-2" style={{ color: 'rgba(239,237,237,0.4)' }}>{summaryText}</div>
                         <motion.button
                           onClick={handleConfirm}
                           disabled={confirming}
-                          className="w-full py-3 rounded-xl text-white font-bold text-[12px] flex items-center justify-center gap-2"
+                          className="w-full py-3 rounded-xl text-white font-bold text-[12px] flex items-center justify-center gap-2 relative overflow-hidden"
                           style={{ backgroundColor: confirming ? '#999' : '#DA3743' }}
                           whileHover={!confirming ? { scale: 1.02 } : {}}
                           whileTap={!confirming ? { scale: 0.98 } : {}}
@@ -214,15 +291,17 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
                               Book with OpenTable
                             </>
                           )}
+                          <PreTapGlow show={autoPhase === 'confirm' && autoTap !== 'confirm'} />
+                          <TapIndicator show={autoTap === 'confirm'} />
                         </motion.button>
                       </motion.div>
                     )}
                   </AnimatePresence>
 
                   {/* Powered by */}
-                  <div className="flex items-center justify-center gap-1.5 mt-3">
+                  <div className="flex items-center justify-center gap-1.5 mt-2">
                     <svg width="8" height="8" viewBox="0 0 24 24" fill="#DA3743"><circle cx="12" cy="12" r="10" fill="none" stroke="#DA3743" strokeWidth="1.5"/><circle cx="12" cy="12" r="3" fill="#DA3743"/></svg>
-                    <span className="text-[8px] text-white/25">Powered by OpenTable</span>
+                    <span className="text-[8px]" style={{ color: 'rgba(239,237,237,0.25)' }}>Powered by OpenTable</span>
                   </div>
                 </motion.div>
               ) : (
@@ -255,7 +334,8 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
                   </motion.div>
 
                   <motion.div
-                    className="text-[14px] font-bold text-white mb-1"
+                    className="text-[14px] font-bold mb-1"
+                    style={{ color: '#efeded' }}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
@@ -264,7 +344,8 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
                   </motion.div>
 
                   <motion.div
-                    className="text-[11px] text-white/50 text-center mb-3"
+                    className="text-[11px] text-center mb-3"
+                    style={{ color: 'rgba(239,237,237,0.5)' }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
@@ -273,7 +354,8 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
                   </motion.div>
 
                   <motion.div
-                    className="text-[9px] text-white/30 mb-2"
+                    className="text-[9px] mb-2"
+                    style={{ color: 'rgba(239,237,237,0.3)' }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.7 }}
@@ -290,8 +372,8 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
                     transition={{ delay: 0.9 }}
                   >
                     <span className="gradient-text-linkme text-[9px] font-bold">linkme</span>
-                    <span className="text-white/20 text-[9px]">·</span>
-                    <span className="text-[9px] text-white/40">Full attribution tracked</span>
+                    <span className="text-[9px]" style={{ color: 'rgba(239,237,237,0.2)' }}>·</span>
+                    <span className="text-[9px]" style={{ color: 'rgba(239,237,237,0.4)' }}>Full attribution tracked</span>
                     <span className="text-[9px] text-green-400">✓</span>
                   </motion.div>
 
@@ -303,11 +385,12 @@ export function EmbeddedBooking({ isOpen, onConfirmed }: Props) {
                     transition={{ delay: 1.1 }}
                   >
                     <svg width="8" height="8" viewBox="0 0 24 24" fill="#DA3743"><circle cx="12" cy="12" r="10" fill="none" stroke="#DA3743" strokeWidth="1.5"/><circle cx="12" cy="12" r="3" fill="#DA3743"/></svg>
-                    <span className="text-[8px] text-white/25">Powered by OpenTable</span>
+                    <span className="text-[8px]" style={{ color: 'rgba(239,237,237,0.25)' }}>Powered by OpenTable</span>
                   </motion.div>
 
                   <motion.div
-                    className="mt-3 text-[8px] text-white/20"
+                    className="mt-3 text-[8px]"
+                    style={{ color: 'rgba(239,237,237,0.2)' }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1.5 }}

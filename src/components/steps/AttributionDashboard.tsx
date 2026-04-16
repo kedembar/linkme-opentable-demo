@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { METRICS } from '../../data/constants';
 import { AnimatedCounter } from '../AnimatedCounter';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const tabs = ['Overview', 'Funnel', 'Revenue'];
 
@@ -136,8 +136,8 @@ function OverviewTab() {
 
 function FunnelTab() {
   const funnelDetailed = [
-    { stage: 'Instagram Impression', value: 77300, label: '77.3K', color: '#E4405F', rate: '100%' },
-    { stage: 'Profile Click', value: 12847, label: '12.8K', color: '#F26B5B', rate: '16.6%' },
+    { stage: 'Instagram Impression', value: 215000, label: '215K', color: '#E4405F', rate: '100%' },
+    { stage: 'Profile Click', value: 12847, label: '12.8K', color: '#F26B5B', rate: '6.0%' },
     { stage: 'Linkme Profile View', value: 3200, label: '3.2K', color: '#F7A828', rate: '24.9%' },
     { stage: 'OpenTable Widget Open', value: 2400, label: '2.4K', color: '#DA3743', rate: '75.0%' },
     { stage: 'Time Slot Selected', value: 2100, label: '2.1K', color: '#DA3743', rate: '87.5%' },
@@ -335,8 +335,20 @@ function RevenueTab() {
   );
 }
 
-export function AttributionDashboard() {
+interface DashboardProps {
+  autoPlay?: boolean;
+}
+
+export function AttributionDashboard({ autoPlay }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('Overview');
+
+  // Auto-play: cycle through tabs
+  useEffect(() => {
+    if (!autoPlay) return;
+    const t1 = setTimeout(() => setActiveTab('Funnel'), 4000);
+    const t2 = setTimeout(() => setActiveTab('Revenue'), 8000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [autoPlay]);
 
   return (
     <div className="min-h-full flex flex-col" style={{ background: 'linear-gradient(180deg, #0F1419 0%, #0a0e12 100%)' }}>
@@ -360,7 +372,7 @@ export function AttributionDashboard() {
           <span className="text-[#DA3743] text-sm font-bold">OpenTable</span>
         </div>
         <h1 className="text-lg font-bold text-white mt-1">Attribution Dashboard</h1>
-        <div className="text-xs text-gray-500 mt-0.5">CLAUDIE Miami · Last 30 days</div>
+        <div className="text-xs text-gray-500 mt-0.5">MILA Miami Beach · Last 30 days</div>
       </div>
 
       {/* Tabs */}

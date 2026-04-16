@@ -2,14 +2,14 @@ export const STEPS = [
   {
     id: 1,
     title: 'Instagram Discovery',
-    description: 'A potential diner discovers CLAUDIE Miami on Instagram and taps the link in bio.',
-    tracking: 'Source: Instagram @claudierestaurant',
+    description: 'A potential diner discovers MILA Miami Beach on Instagram and taps the link in bio.',
+    tracking: 'Source: Instagram @milagroup_miami',
     trackingNodes: ['Instagram'],
   },
   {
     id: 2,
     title: 'Linkme Profile & Booking',
-    description: 'The Linkme profile showcases CLAUDIE\'s brand with embedded OpenTable booking — the user never leaves.',
+    description: 'The Linkme profile showcases MILA\'s brand with embedded OpenTable booking — the user never leaves.',
     tracking: 'Instagram → Linkme → OpenTable (tracked)',
     trackingNodes: ['Instagram', 'Linkme', 'OpenTable'],
   },
@@ -31,7 +31,7 @@ export const METRICS = {
   avgPartySize: 3.2,
   avgBill: 75.50,
   funnel: [
-    { label: 'Instagram Reach', value: 77300, shortLabel: '77.3K' },
+    { label: 'Instagram Reach', value: 215000, shortLabel: '215K' },
     { label: 'Linkme Profile', value: 3200, shortLabel: '3.2K' },
     { label: 'OpenTable Click', value: 1900, shortLabel: '1.9K' },
     { label: 'Confirmed', value: 1800, shortLabel: '1.8K' },

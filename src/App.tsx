@@ -9,6 +9,7 @@ import { AttributionDashboard } from './components/steps/AttributionDashboard';
 
 function App() {
   const [currentStep, setCurrentStep] = useState(1);
+  const [autoPlay, setAutoPlay] = useState(true);
 
   const goToStep = useCallback((step: number) => {
     if (step >= 1 && step <= 3) setCurrentStep(step);
@@ -24,21 +25,37 @@ function App() {
         e.preventDefault();
         setCurrentStep((s) => Math.max(s - 1, 1));
       } else if (e.key === 'r' || e.key === 'R') {
+        setAutoPlay(false);
         setCurrentStep(1);
+      } else if (e.key === 'p' || e.key === 'P') {
+        setAutoPlay((prev) => {
+          if (!prev) setCurrentStep(1);
+          return !prev;
+        });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Start auto-play: reset to step 1 and begin
+  const startAutoPlay = useCallback(() => {
+    setCurrentStep(1);
+    setAutoPlay(true);
+  }, []);
+
+  const stopAutoPlay = useCallback(() => {
+    setAutoPlay(false);
+  }, []);
+
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <InstagramProfile onNext={() => goToStep(2)} />;
+        return <InstagramProfile onNext={() => goToStep(2)} autoPlay={autoPlay} />;
       case 2:
-        return <LinkmeProfile onNext={() => goToStep(3)} />;
+        return <LinkmeProfile onNext={() => goToStep(3)} autoPlay={autoPlay} />;
       case 3:
-        return <AttributionDashboard />;
+        return <AttributionDashboard autoPlay={autoPlay} />;
       default:
         return null;
     }
@@ -58,9 +75,38 @@ function App() {
           <span className="text-text-muted text-xl font-light">×</span>
           <span className="text-ot-red text-2xl font-bold tracking-tight">OpenTable</span>
         </div>
-        <h1 className="text-sm text-text-secondary font-medium tracking-wide">
-          Full Attribution Journey & Revenue Tracking Demo
-        </h1>
+        <div className="flex items-center justify-center gap-3 mt-1">
+          <h1 className="text-sm text-text-secondary font-medium tracking-wide">
+            Full Attribution Journey & Revenue Tracking Demo
+          </h1>
+          <motion.button
+            onClick={autoPlay ? stopAutoPlay : startAutoPlay}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold transition-all"
+            style={{
+              background: autoPlay
+                ? 'linear-gradient(135deg, rgba(218,55,67,0.2), rgba(218,55,67,0.1))'
+                : 'linear-gradient(135deg, rgba(52,199,89,0.2), rgba(52,199,89,0.1))',
+              border: autoPlay
+                ? '1px solid rgba(218,55,67,0.3)'
+                : '1px solid rgba(52,199,89,0.3)',
+              color: autoPlay ? '#DA3743' : '#34C759',
+            }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            {autoPlay ? (
+              <>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                Stop
+              </>
+            ) : (
+              <>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                Auto Play
+              </>
+            )}
+          </motion.button>
+        </div>
       </motion.header>
 
       {/* Main content */}
@@ -208,7 +254,7 @@ function App() {
 
       {/* Keyboard hint */}
       <div className="fixed bottom-4 right-4 text-[10px] text-text-muted/40 hidden lg:block">
-        ← → Arrow keys to navigate · R to restart
+        ← → Arrow keys to navigate · R to restart · P to auto-play
       </div>
     </div>
   );
