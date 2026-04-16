@@ -390,11 +390,10 @@ export function EmbeddedBooking({ isOpen, onConfirmed, autoPlay }: Props) {
 
                   <motion.div
                     className="mt-3 text-[8px]"
-                    style={{ color: 'rgba(239,237,237,0.2)' }}
+                    style={{ color: 'rgba(239,237,237,0.2)', animation: 'pulse 2s infinite' }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1.5 }}
-                    style={{ animation: 'pulse 2s infinite' }}
                   >
                     Loading attribution dashboard...
                   </motion.div>
